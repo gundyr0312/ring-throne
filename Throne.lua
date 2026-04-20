@@ -11,7 +11,6 @@ local enabled = false
 local parts = {}
 local t = 0
 
--- SISTEMA V6
 if not getgenv().Network then
     getgenv().Network = {BaseParts = {}}
     Network.RetainPart = function(Part)
@@ -29,7 +28,6 @@ pcall(function()
     end)
 end)
 
--- GUI MEJORADA
 local gui = Instance.new("ScreenGui")
 gui.Name = "ThroneUI"
 gui.ResetOnSpawn = false
@@ -41,16 +39,11 @@ frame.Position = UDim2.new(0, 20, 0.5, -150)
 frame.BackgroundColor3 = Color3.fromRGB(8,8,8)
 frame.BorderSizePixel = 0
 frame.ClipsDescendants = true
-
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0,12)
-
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 local stroke = Instance.new("UIStroke", frame)
 stroke.Color = Color3.fromRGB(0,255,120)
 stroke.Thickness = 2
-stroke.Transparency = 0.3
 
--- BARRA SUPERIOR
 local titleBar = Instance.new("Frame", frame)
 titleBar.Size = UDim2.new(1,0,0,32)
 titleBar.BackgroundColor3 = Color3.fromRGB(0,18,0)
@@ -74,7 +67,6 @@ minBtn.Text = "-"
 minBtn.BackgroundColor3 = Color3.fromRGB(0,35,0)
 minBtn.TextColor3 = Color3.fromRGB(0,255,120)
 minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 18
 Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0,6)
 
 local closeBtn = Instance.new("TextButton", titleBar)
@@ -84,10 +76,8 @@ closeBtn.Text = "X"
 closeBtn.BackgroundColor3 = Color3.fromRGB(35,0,0)
 closeBtn.TextColor3 = Color3.fromRGB(0,255,120)
 closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 14
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,6)
 
--- DRAG
 local dragging, dragStart, startPos
 titleBar.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -101,11 +91,8 @@ UIS.InputChanged:Connect(function(i)
         frame.Position = startPos + UDim2.new(0, i.Position.X - dragStart.X, 0, i.Position.Y - dragStart.Y)
     end
 end)
-UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
+UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
--- CONTROLES
 local function createControl(name, y, key)
     local label = Instance.new("TextLabel", frame)
     label.Size = UDim2.new(0.35,0,0,28)
@@ -161,9 +148,7 @@ toggle.Text = "OFF"
 toggle.BackgroundColor3 = Color3.fromRGB(0,25,0)
 toggle.TextColor3 = Color3.fromRGB(0,255,120)
 toggle.Font = Enum.Font.GothamBlack
-toggle.TextSize = 16
 Instance.new("UICorner", toggle).CornerRadius = UDim.new(0,8)
-Instance.new("UIStroke", toggle).Color = Color3.fromRGB(0,255,120)
 
 toggle.MouseButton1Click:Connect(function()
     enabled = not enabled
@@ -171,28 +156,45 @@ toggle.MouseButton1Click:Connect(function()
     toggle.BackgroundColor3 = enabled and Color3.fromRGB(0,60,0) or Color3.fromRGB(0,25,0)
 end)
 
--- MINIMIZAR Y CERRAR
+-- MINIMIZAR ARREGLADO
 local minimized = false
 minBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     if minimized then
         frame:TweenSize(UDim2.new(0,280,0,32), "Out", "Quad", 0.2, true)
         for _,v in ipairs(frame:GetChildren()) do
-            if v ~= titleBar and v ~= stroke and v ~= corner then v.Visible = false end
+            if v:IsA("GuiObject") and v ~= titleBar then
+                v.Visible = false
+            end
         end
         minBtn.Text = "+"
     else
         frame:TweenSize(UDim2.new(0,280,0,300), "Out", "Quad", 0.2, true)
-        for _,v in ipairs(frame:GetChildren()) do v.Visible = true end
+        for _,v in ipairs(frame:GetChildren()) do
+            if v:IsA("GuiObject") then
+                v.Visible = true
+            end
+        end
         minBtn.Text = "-"
     end
 end)
 
+-- CERRAR ARREGLADO (para todo)
 closeBtn.MouseButton1Click:Connect(function()
+    enabled = false
+    for _,part in ipairs(parts) do
+        if part and part.Parent then
+            part.Velocity = Vector3.new(0,-50,0)
+            part.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+    parts = {}
+    if getgenv().Network then
+        getgenv().Network.BaseParts = {}
+    end
     gui:Destroy()
 end)
 
--- LÓGICA DE PARTES (igual que antes)
 local function RetainPart(v)
     if v:IsA("BasePart") and not v.Anchored and v:IsDescendantOf(workspace) then
         if v:IsDescendantOf(character) then return false end
@@ -213,7 +215,7 @@ local function getParts()
     end
 end
 
-task.spawn(function() while true do task.wait(1.5) if enabled then getParts() end end end)
+task.spawn(function() while gui.Parent do task.wait(1.5) if enabled then getParts() end end end)
 player.CharacterAdded:Connect(function(char) character = char root = char:WaitForChild("HumanoidRootPart") end)
 
 local function getRingPosition(i,total,tilt)
@@ -223,7 +225,7 @@ local function getRingPosition(i,total,tilt)
 end
 
 RunService.Heartbeat:Connect(function(dt)
-    if not enabled or not root then return end
+    if not enabled or not root or not gui.Parent then return end
     t = t + dt * config.speed
     local total = #parts
     if total == 0 then return end
