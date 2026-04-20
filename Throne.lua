@@ -6,7 +6,6 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local root = character:WaitForChild("HumanoidRootPart")
 
--- CONFIG
 local config = {
     radius = 35,
     height = 12,
@@ -18,7 +17,6 @@ local enabled = false
 local parts = {}
 local t = 0
 
--- NETWORK
 pcall(function()
     RunService.Heartbeat:Connect(function()
         sethiddenproperty(player, "SimulationRadius", math.huge)
@@ -122,13 +120,24 @@ toggle.MouseButton1Click:Connect(function()
     toggle.Text = enabled and "ON" or "OFF"
 end)
 
--- PARTES CON COLISIÓN
+-- PARTES - FILTRO NUEVO
 local function getParts()
     parts = {}
     for _,v in pairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(character) and not v.Parent:FindFirstChild("Humanoid") then
+        if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(character) then
+            if v.Parent and v.Parent:FindFirstChildOfClass("Humanoid") then continue end
+            if v.Name == "Baseplate" or v:IsDescendantOf(workspace.Terrain) then continue end
+            if v.Size.Magnitude > 60 then continue end -- ignora piezas gigantes del mapa
+
+            -- verifica que no esté soldado a algo fijo
+            local static = false
+            for _,c in ipairs(v:GetConnectedParts(true)) do
+                if c.Anchored then static = true break end
+            end
+            if static then continue end
+
             v.CanCollide = true
-            pcall(function() v.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0) end)
+            pcall(function() v.CustomPhysicalProperties = PhysicalProperties.new(0.1,0,0,0,0) end)
             table.insert(parts, v)
         end
     end
@@ -146,7 +155,6 @@ player.CharacterAdded:Connect(function(char)
     root = char:WaitForChild("HumanoidRootPart")
 end)
 
--- ANILLOS
 local function getRingPosition(index, total, tilt)
     local angle = (index/total) * math.pi * 2
     local base = Vector3.new(math.cos(angle)*config.radius, 0, math.sin(angle)*config.radius)
@@ -155,7 +163,6 @@ end
 
 RunService.Heartbeat:Connect(function(dt)
     if not enabled or not root then return end
-
     t = t + dt * config.speed
     local total = #parts
     if total == 0 then return end
@@ -169,16 +176,9 @@ RunService.Heartbeat:Connect(function(dt)
             local tilt = ring == 0 and 0 or ring == 1 and math.rad(45) or math.rad(-45)
             local pos = getRingPosition(indexInRing, perRing, tilt)
 
-            local final
-            if ring == 0 then -- SOLO MEDIO GIRA
-                final = root.Position + Vector3.new(0, config.height, 0) + (spin * pos)
-            else -- otros 2 estáticos
-                final = root.Position + Vector3.new(0, config.height, 0) + pos
-            end
+            local final = root.Position + Vector3.new(0, config.height, 0) + (ring == 0 and spin * pos or pos)
 
-            -- FIX: posiciona directo, ya no persigue
             part.AssemblyLinearVelocity = Vector3.zero
-            part.AssemblyAngularVelocity = Vector3.zero
             part.CFrame = CFrame.new(final)
         end
     end
