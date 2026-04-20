@@ -1,146 +1,115 @@
+-- Throne Pro Delta | Natural Disaster Survival
+-- by lukas base + 3 rings fix
+print("THRONE DELTA CARGADO")
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
-local character, root
+local LP = Players.LocalPlayer
+local root = nil
 
--- CONFIG (cámbialo aquí si quieres)
-local config = {
-    radius = 60,
-    height = 15,
-    rotationSpeed = 2, -- grados por frame
-    attractionStrength = 600,
-    spinSpeed = 1
+-- CONFIG (edita aquí)
+local cfg = {
+    radius = 55,
+    height = 12,
+    speed = 2.5, -- grados por frame
+    force = 800 -- súbelo si van lento en ND
 }
 
-local enabled = false
+local on = false
 local parts = {}
-local partRings = {}
-local ringCounter = 0
+local rings = {}
+local count = 0
 
--- COLORES
-local BLACK = Color3.fromRGB(0,0,0)
-local GREEN = Color3.fromRGB(0,255,0) -- verde chillón
-local DARK = Color3.fromRGB(10,10)
-
--- Mantener simulación
-pcall(function()
-    RunService.Heartbeat:Connect(function()
-        sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-    end)
-end)
-
--- GUI SIMPLE
+-- GUI simple Delta-friendly
 local gui = Instance.new("ScreenGui")
-gui.Name = "ThroneUI"
+gui.Name = "ThroneDelta"
 gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.Parent = LP:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame")
-frame.Parent = gui
-frame.Size = UDim2.new(0, 240, 0, 100)
-frame.Position = UDim2.new(0, 20, 0, 100)
-frame.BackgroundColor3 = BLACK
-frame.BorderSizePixel = 0
+local btn = Instance.new("TextButton")
+btn.Parent = gui
+btn.Size = UDim2.new(0, 180, 0, 45)
+btn.Position = UDim2.new(0, 15, 0, 15)
+btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+btn.BorderSizePixel = 0
+btn.Text = "THRONE OFF"
+btn.TextColor3 = Color3.fromRGB(0, 255, 0) -- verde chillón
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 20
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = frame
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = btn
 
 local stroke = Instance.new("UIStroke")
-stroke.Color = GREEN
+stroke.Color = Color3.fromRGB(0, 255, 0)
 stroke.Thickness = 2
-stroke.Parent = frame
+stroke.Parent = btn
 
-local title = Instance.new("TextLabel")
-title.Parent = frame
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "THRONE PRO"
-title.TextColor3 = GREEN
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
-
-local toggle = Instance.new("TextButton")
-toggle.Parent = frame
-toggle.Size = UDim2.new(0, 200, 0, 40)
-toggle.Position = UDim2.new(0, 20, 0, 45)
-toggle.Text = "OFF"
-toggle.BackgroundColor3 = DARK
-toggle.TextColor3 = GREEN
-toggle.Font = Enum.Font.GothamBold
-toggle.TextSize = 18
-
-local tcorner = Instance.new("UICorner")
-tcorner.CornerRadius = UDim.new(0, 8)
-tcorner.Parent = toggle
-
-toggle.MouseButton1Click:Connect(function()
-    enabled = not enabled
-    if enabled then
-        toggle.Text = "ON"
-    else
-        toggle.Text = "OFF"
-    end
+btn.MouseButton1Click:Connect(function()
+    on = not on
+    btn.Text = on and "THRONE ON" or "THRONE OFF"
 end)
 
--- Personaje
-local function onChar(char)
-    character = char
-    root = char:WaitForChild("HumanoidRootPart")
-end
-LocalPlayer.CharacterAdded:Connect(onChar)
-if LocalPlayer.Character then onChar(LocalPlayer.Character) end
+-- personaje
+LP.CharacterAdded:Connect(function(c)
+    root = c:WaitForChild("HumanoidRootPart")
+end)
+if LP.Character then root = LP.Character:FindFirstChild("HumanoidRootPart") end
 
--- Preparar partes
-local function canUse(p)
-    return p:IsA("BasePart") and not p.Anchored and p:IsDescendantOf(workspace) and (not character or not p:IsDescendantOf(character)) and (not p.Parent or not p.Parent:FindFirstChild("Humanoid"))
-end
+-- recolectar partes como V6
+local function add(p)
+    if not p:IsA("BasePart") then return end
+    if p.Anchored then return end
+    if not p:IsDescendantOf(workspace) then return end
+    if p.Parent and p.Parent:FindFirstChild("Humanoid") then return end
+    if LP.Character and p:IsDescendantOf(LP.Character) then return end
 
-local function prepare(p)
-    if p:GetAttribute("Ready") then return end
-    p:SetAttribute("Ready", true)
     p.CanCollide = false
-    p.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0)
-    partRings[p] = ringCounter % 3
-    ringCounter = ringCounter + 1
+    table.insert(parts, p)
+    rings[p] = count % 3
+    count = count + 1
 end
 
-local function addPart(p)
-    if canUse(p) then
-        prepare(p)
-        table.insert(parts, p)
-    end
-end
+for _,v in ipairs(workspace:GetDescendants()) do add(v) end
+workspace.DescendantAdded:Connect(add)
 
-for _,p in ipairs(workspace:GetDescendants()) do addPart(p) end
-workspace.DescendantAdded:Connect(addPart)
-
--- LOOP PRINCIPAL
+-- loop principal (Delta safe)
 RunService.Heartbeat:Connect(function()
-    if not enabled then return end
-    if not root then return end
+    -- simulation radius (pcall por si Delta lo bloquea)
+    pcall(function()
+        sethiddenproperty(LP, "SimulationRadius", math.huge)
+    end)
+
+    if not on or not root then return end
 
     local center = root.Position
     for _,part in ipairs(parts) do
-        if part.Parent and canUse(part) then
-            local ring = partRings[part] or 0
+        if part and part.Parent then
+            local r = rings[part] or 0
             local tilt = 0
-            if ring == 1 then tilt = math.rad(45) end
-            if ring == 2 then tilt = math.rad(-45) end
+            if r == 1 then tilt = math.rad(45) end
+            if r == 2 then tilt = math.rad(-45) end
 
-            local angle = math.atan2(part.Position.Z - center.Z, part.Position.X - center.X)
-            local newAngle = angle + math.rad(config.rotationSpeed)
+            -- ángulo real (clave para ND)
+            local ang = math.atan2(part.Position.Z - center.Z, part.Position.X - center.X)
+            local newAng = ang + math.rad(cfg.speed)
 
-            local offset = Vector3.new(math.cos(newAngle) * config.radius, 0, math.sin(newAngle) * config.radius)
-            local target = center + Vector3.new(0, config.height, 0) + (CFrame.Angles(tilt, 0, 0) * offset)
+            local offset = Vector3.new(math.cos(newAng) * cfg.radius, 0, math.sin(newAng) * cfg.radius)
+            local target = center + Vector3.new(0, cfg.height, 0) + (CFrame.Angles(tilt, 0, 0) * offset)
 
             local dir = target - part.Position
             if dir.Magnitude > 1 then
-                part.Velocity = dir.Unit * config.attractionStrength
+                -- Delta prefiere AssemblyLinearVelocity
+                pcall(function()
+                    part.AssemblyLinearVelocity = dir.Unit * cfg.force
+                end)
+                -- fallback viejo
+                pcall(function()
+                    part.Velocity = dir.Unit * cfg.force
+                end)
             end
-            part.AssemblyAngularVelocity = Vector3.new(0, config.spinSpeed * 10, 0)
         end
     end
 end)
