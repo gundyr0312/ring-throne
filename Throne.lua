@@ -18,80 +18,61 @@ pcall(function()
 end)
 
 -- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "ThroneUI"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+local gui = Instance.new("ScreenGui") gui.Name="ThroneUI" gui.ResetOnSpawn=false gui.Parent=player:WaitForChild("PlayerGui")
+local frame = Instance.new("Frame",gui) frame.Size=UDim2.new(0,260,0,260) frame.Position=UDim2.new(0,20,0.5,-130) frame.BackgroundColor3=Color3.fromRGB(0,0,0)
+Instance.new("UIStroke",frame).Color=Color3.fromRGB(0,255,0)
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 260, 0, 260)
-frame.Position = UDim2.new(0, 20, 0.5, -130)
-frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-Instance.new("UIStroke", frame).Color = Color3.fromRGB(0,255,0)
-
-local dragging, dragStart, startPos
-frame.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging=true dragStart=i.Position startPos=frame.Position end end)
-UIS.InputChanged:Connect(function(i) if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then frame.Position = startPos + UDim2.new(0,i.Position.X-dragStart.X,0,i.Position.Y-dragStart.Y) end end)
+local dragging,ds,sp
+frame.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true ds=i.Position sp=frame.Position end end)
+UIS.InputChanged:Connect(function(i) if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then frame.Position=sp+UDim2.new(0,i.Position.X-ds.X,0,i.Position.Y-ds.Y) end end)
 UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
 
-local function createControl(name, y, key)
-    local l=Instance.new("TextLabel",frame) l.Size=UDim2.new(0.4,0,0,30) l.Position=UDim2.new(0,10,0,y) l.Text=name l.TextColor3=Color3.fromRGB(0,255,0) l.BackgroundTransparency=1 l.Font=Enum.Font.Gotham
-    local b=Instance.new("TextBox",frame) b.Size=UDim2.new(0.3,0,0,30) b.Position=UDim2.new(0.4,0,0,y) b.Text=tostring(config[key]) b.BackgroundColor3=Color3.fromRGB(10,10,10) b.TextColor3=Color3.fromRGB(0,255,0)
-    local p=Instance.new("TextButton",frame) p.Size=UDim2.new(0.1,0,0,30) p.Position=UDim2.new(0.72,0,0,y) p.Text="+" p.BackgroundColor3=Color3.fromRGB(0,40,0) p.TextColor3=Color3.fromRGB(0,255,0)
-    local m=Instance.new("TextButton",frame) m.Size=UDim2.new(0.1,0,0,30) m.Position=UDim2.new(0.84,0,0,y) m.Text="-" m.BackgroundColor3=Color3.fromRGB(0,40,0) m.TextColor3=Color3.fromRGB(0,255,0)
-    p.MouseButton1Click:Connect(function() config[key]=config[key]+5 b.Text=config[key] end)
-    m.MouseButton1Click:Connect(function() config[key]=config[key]-5 b.Text=config[key] end)
-    b.FocusLost:Connect(function() local n=tonumber(b.Text) if n then config[key]=n end b.Text=config[key] end)
+local function ctrl(n,y,k)
+    local l=Instance.new("TextLabel",frame) l.Position=UDim2.new(0,10,0,y) l.Size=UDim2.new(0.4,0,0,30) l.Text=n l.TextColor3=Color3.fromRGB(0,255,0) l.BackgroundTransparency=1 l.Font=Enum.Font.Gotham
+    local b=Instance.new("TextBox",frame) b.Position=UDim2.new(0.4,0,0,y) b.Size=UDim2.new(0.3,0,0,30) b.Text=tostring(config[k]) b.BackgroundColor3=Color3.fromRGB(10,10,10) b.TextColor3=Color3.fromRGB(0,255,0)
+    local p=Instance.new("TextButton",frame) p.Position=UDim2.new(0.72,0,0,y) p.Size=UDim2.new(0.1,0,0,30) p.Text="+" p.BackgroundColor3=Color3.fromRGB(0,40,0) p.TextColor3=Color3.fromRGB(0,255,0)
+    local m=Instance.new("TextButton",frame) m.Position=UDim2.new(0.84,0,0,y) m.Size=UDim2.new(0.1,0,0,30) m.Text="-" m.BackgroundColor3=Color3.fromRGB(0,40,0) m.TextColor3=Color3.fromRGB(0,255,0)
+    p.MouseButton1Click:Connect(function() config[k]=config[k]+5 b.Text=config[k] end)
+    m.MouseButton1Click:Connect(function() config[k]=config[k]-5 b.Text=config[k] end)
 end
-createControl("Radius",20,"radius") createControl("Height",70,"height") createControl("Speed",120,"speed") createControl("Force",170,"force")
+ctrl("Radius",20,"radius") ctrl("Height",70,"height") ctrl("Speed",120,"speed") ctrl("Force",170,"force")
 
 local toggle=Instance.new("TextButton",frame) toggle.Size=UDim2.new(0.5,0,0,40) toggle.Position=UDim2.new(0.25,0,1,-50) toggle.Text="OFF" toggle.BackgroundColor3=Color3.fromRGB(0,30,0) toggle.TextColor3=Color3.fromRGB(0,255,0) toggle.Font=Enum.Font.GothamBold
 toggle.MouseButton1Click:Connect(function() enabled=not enabled toggle.Text=enabled and "ON" or "OFF" end)
 
--- FILTRO NUEVO: SOLO ESCOMBRO SUELTO
-local function isRealDebris(v)
+-- SOLO ESCOMBRO REAL Y CON OWNER
+local function isDebris(v)
     if not v:IsA("BasePart") then return false end
     if v.Anchored or v.Locked then return false end
     if v:IsDescendantOf(character) then return false end
-    if v:IsDescendantOf(workspace.Terrain) then return false end
-    if v.Name == "Baseplate" then return false end
-    if v.Size.Magnitude < 1 or v.Size.Magnitude > 45 then return false end
-    if v.Mass > 150 then return false end
-
-    -- no es parte de un jugador
-    local model = v:FindFirstAncestorOfClass("Model")
-    if model and model:FindFirstChildOfClass("Humanoid") then return false end
-    if Players:GetPlayerFromCharacter(model) then return false end
-
-    -- sin soldaduras a nada fijo
-    if v:FindFirstChildWhichIsA("WeldConstraint", true) then return false end
-    if v:FindFirstChildWhichIsA("Weld", true) then return false end
-    if v:FindFirstChildWhichIsA("Motor6D", true) then return false end
-
-    local conn = v:GetConnectedParts(true)
-    if #conn > 1 then return false end -- si está unido a otras piezas, es estructura
-
+    if v.Size.Magnitude<2 or v.Size.Magnitude>45 then return false end
+    if v.Mass>150 then return false end
+    local m=v:FindFirstAncestorOfClass("Model") if m and m:FindFirstChildOfClass("Humanoid") then return false end
+    if v:FindFirstChildWhichIsA("WeldConstraint",true) then return false end
+    if #v:GetConnectedParts(true)>1 then return false end
+    -- importante: solo si tenemos network
+    local ok,owner = pcall(function() return v:GetNetworkOwner() end)
+    if ok and owner ~= player then return false end
     return true
 end
 
 local function getParts()
-    parts = {}
+    parts={}
     for _,v in pairs(workspace:GetDescendants()) do
-        if isRealDebris(v) then
-            v.CanCollide = true
-            pcall(function() v.CustomPhysicalProperties = PhysicalProperties.new(0.1,0,0) end)
-            table.insert(parts, v)
+        if isDebris(v) then
+            v.CanCollide=true
+            pcall(function() v.CustomPhysicalProperties=PhysicalProperties.new(0.1,0,0) end)
+            table.insert(parts,v)
         end
     end
 end
 
-task.spawn(function() while true do task.wait(2) if enabled then getParts() end end end)
+task.spawn(function() while true do task.wait(1.5) if enabled then getParts() end end end)
 player.CharacterAdded:Connect(function(c) character=c root=c:WaitForChild("HumanoidRootPart") end)
 
-local function getRingPosition(i,t,tilt)
-    local a=(i/t)*math.pi*2
-    local b=Vector3.new(math.cos(a)*config.radius,0,math.sin(a)*config.radius)
-    return CFrame.Angles(tilt,0,0)*b
+local function ringPos(i,total,tilt)
+    local a=(i/total)*math.pi*2
+    return CFrame.Angles(tilt,0,0)*Vector3.new(math.cos(a)*config.radius,0,math.sin(a)*config.radius)
 end
 
 RunService.Heartbeat:Connect(function(dt)
@@ -105,10 +86,13 @@ RunService.Heartbeat:Connect(function(dt)
             local ring=(i-1)%3
             local idx=math.floor((i-1)/3)+1
             local tilt=ring==0 and 0 or ring==1 and math.rad(45) or math.rad(-45)
-            local pos=getRingPosition(idx,per,tilt)
+            local pos=ringPos(idx,per,tilt)
             local final=root.Position+Vector3.new(0,config.height,0)+(ring==0 and spin*pos or pos)
-            p.AssemblyLinearVelocity=Vector3.zero
-            p.CFrame=CFrame.new(final)
+
+            -- CLAVE: velocidad proporcional a la distancia (replica a todos)
+            local delta = final - p.Position
+            p.AssemblyLinearVelocity = delta * 25 -- 25 = llega en 1/25 seg, no se compacta
+            p.AssemblyAngularVelocity = Vector3.new(0,5,0)
         end
     end
 end)
