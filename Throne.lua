@@ -72,7 +72,7 @@ local function createControl(name, y, key)
     box.Size = UDim2.new(0.3,0,0,30)
     box.Position = UDim2.new(0.4,0,0,y)
     box.Text = tostring(config[key])
-    box.BackgroundColor3 = Color3.fromRGB(10,10)
+    box.BackgroundColor3 = Color3.fromRGB(10,10,10)
     box.TextColor3 = Color3.fromRGB(0,255,0)
 
     local plus = Instance.new("TextButton", frame)
@@ -122,12 +122,12 @@ toggle.MouseButton1Click:Connect(function()
     toggle.Text = enabled and "ON" or "OFF"
 end)
 
--- PARTES (con masa 0 como V6)
+-- PARTES (CAMBIO 2: ahora con colisión)
 local function getParts()
     parts = {}
     for _,v in pairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(character) and not v.Parent:FindFirstChild("Humanoid") then
-            v.CanCollide = false
+            v.CanCollide = true -- antes era false, ahora empujan
             pcall(function() v.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0) end)
             table.insert(parts, v)
         end
@@ -170,14 +170,19 @@ RunService.Heartbeat:Connect(function(dt)
 
             local pos = getRingPosition(indexInRing, perRing, tilt)
             local spin = CFrame.Angles(0, t, 0)
-            local final = root.Position + Vector3.new(0, config.height, 0) + (spin * pos)
+
+            -- CAMBIO 1: solo el anillo del medio (ring 0) gira
+            local final
+            if ring == 0 then
+                final = root.Position + Vector3.new(0, config.height, 0) + (spin * pos)
+            else
+                final = root.Position + Vector3.new(0, config.height, 0) + pos
+            end
 
             local dir = final - part.Position
             if dir.Magnitude > 0.5 then
-                -- Delta funciona mejor con AssemblyLinearVelocity
                 part.AssemblyLinearVelocity = dir.Unit * config.force
             end
-            -- giro propio
             part.AssemblyAngularVelocity = Vector3.new(0, 5, 0)
         end
     end
