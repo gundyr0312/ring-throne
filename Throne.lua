@@ -1,214 +1,183 @@
-print("THRONE DELTA OK")
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
-local plr = Players.LocalPlayer
-local char = plr.Character or plr.CharacterAdded:Wait()
-local root = char:WaitForChild("HumanoidRootPart")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
 
-local cfg = {radius = 35, height = 12, speed = 2.5, force = 700}
-local on = false
+-- CONFIG
+local config = {
+    radius = 30,
+    height = 10,
+    speed = 2,
+    force = 400 -- subido para Natural Disaster
+}
+
+local enabled = false
 local parts = {}
-local data = {}
-local t = 0
 
--- network
+-- NETWORK (CLAVE)
 pcall(function()
     RunService.Heartbeat:Connect(function()
-        sethiddenproperty(plr, "SimulationRadius", math.huge)
+        sethiddenproperty(player, "SimulationRadius", math.huge)
     end)
 end)
 
--- UI
-local gui = Instance.new("ScreenGui")
+-- GUI (TU MISMA)
+local gui = Instance.new("ScreenGui", player.PlayerGui)
 gui.Name = "ThroneUI"
-gui.ResetOnSpawn = false
-gui.Parent = plr:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false -- no se cierra al morir
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 280, 0, 260)
-main.Position = UDim2.new(0, 20, 0.5, -130)
-main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-main.BorderSizePixel = 0
-main.Active = true
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 260, 0, 260)
+frame.Position = UDim2.new(0, 20, 0.5, -130)
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 
-local c = Instance.new("UICorner", main)
-c.CornerRadius = UDim.new(0, 16)
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(0,255,0)
+stroke.Thickness = 2
 
-local s = Instance.new("UIStroke", main)
-s.Color = Color3.fromRGB(0, 255, 0)
-s.Thickness = 2
-
-local top = Instance.new("Frame", main)
-top.Size = UDim2.new(1, 0, 0, 32)
-top.BackgroundColor3 = Color3.fromRGB(10, 10)
-top.BorderSizePixel = 0
-Instance.new("UICorner", top).CornerRadius = UDim.new(0, 16)
-
-local title = Instance.new("TextLabel", top)
-title.Size = UDim2.new(1, -70, 1, 0)
-title.Position = UDim2.new(0, 12, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "THRONE PRO"
-title.TextColor3 = Color3.fromRGB(0, 255, 0)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.TextXAlignment = Enum.TextXAlignment.Left
-
-local function topBtn(txt, x)
-    local b = Instance.new("TextButton", top)
-    b.Size = UDim2.new(0, 26, 0, 26)
-    b.Position = UDim2.new(1, x, 0, 3)
-    b.Text = txt
-    b.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    b.TextColor3 = Color3.fromRGB(0, 255, 0)
-    b.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    return b
-end
-
-local close = topBtn("X", -30)
-local mini = topBtn("-", -62)
-
--- drag
-local dragging, ds, sp
-top.InputBegan:Connect(function(i)
+-- DRAG
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
-        ds = i.Position
-        sp = main.Position
+        dragStart = i.Position
+        startPos = frame.Position
     end
 end)
 UIS.InputChanged:Connect(function(i)
     if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local d = i.Position - ds
-        main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+        local delta = i.Position - dragStart
+        frame.Position = startPos + UDim2.new(0,delta.X,0,delta.Y)
     end
 end)
-UIS.InputEnded:Connect(function() dragging = false end)
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
 
--- controles simples
-local function ctrl(name, y, k)
-    local l = Instance.new("TextLabel", main)
-    l.Position = UDim2.new(0, 15, 0, y)
-    l.Size = UDim2.new(0, 70, 0, 26)
-    l.BackgroundTransparency = 1
-    l.Text = name
-    l.TextColor3 = Color3.fromRGB(0, 255, 0)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 14
-    l.TextXAlignment = Enum.TextXAlignment.Left
+-- UI CONTROL
+local function createControl(name, y, key)
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(0.4,0,0,30)
+    label.Position = UDim2.new(0,10,0,y)
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(0,255,0)
+    label.BackgroundTransparency = 1
 
-    local box = Instance.new("TextBox", main)
-    box.Position = UDim2.new(0, 90, 0, y)
-    box.Size = UDim2.new(0, 60, 0, 26)
-    box.Text = tostring(cfg[k])
-    box.BackgroundColor3 = Color3.fromRGB(15, 15)
-    box.TextColor3 = Color3.fromRGB(0, 255, 0)
-    box.ClearTextOnFocus = false
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    local box = Instance.new("TextBox", frame)
+    box.Size = UDim2.new(0.3,0,0,30)
+    box.Position = UDim2.new(0.4,0,0,y)
+    box.Text = tostring(config[key])
+    box.BackgroundColor3 = Color3.fromRGB(20,20)
+    box.TextColor3 = Color3.fromRGB(0,255,0)
 
-    local p = Instance.new("TextButton", main)
-    p.Position = UDim2.new(0, 160, 0, y)
-    p.Size = UDim2.new(0, 26, 0, 26)
-    p.Text = "+"
-    p.BackgroundColor3 = Color3.fromRGB(0, 40, 0)
-    p.TextColor3 = Color3.fromRGB(0, 255, 0)
-    Instance.new("UICorner", p).CornerRadius = UDim.new(0, 6)
+    local plus = Instance.new("TextButton", frame)
+    plus.Size = UDim2.new(0.1,0,0,30)
+    plus.Position = UDim2.new(0.72,0,0,y)
+    plus.Text = "+"
+    plus.BackgroundColor3 = Color3.fromRGB(0,40,0)
+    plus.TextColor3 = Color3.fromRGB(0,255,0)
 
-    local m = Instance.new("TextButton", main)
-    m.Position = UDim2.new(0, 192, 0, y)
-    m.Size = UDim2.new(0, 26, 0, 26)
-    m.Text = "-"
-    m.BackgroundColor3 = Color3.fromRGB(0, 40, 0)
-    m.TextColor3 = Color3.fromRGB(0, 255, 0)
-    Instance.new("UICorner", m).CornerRadius = UDim.new(0, 6)
+    local minus = Instance.new("TextButton", frame)
+    minus.Size = UDim2.new(0.1,0,0,30)
+    minus.Position = UDim2.new(0.84,0,0,y)
+    minus.Text = "-"
+    minus.BackgroundColor3 = Color3.fromRGB(0,40,0)
+    minus.TextColor3 = Color3.fromRGB(0,255,0)
 
-    p.MouseButton1Click:Connect(function() cfg[k] = cfg[k] + 5 box.Text = cfg[k] end)
-    m.MouseButton1Click:Connect(function() cfg[k] = math.max(5, cfg[k]-5) box.Text = cfg[k] end)
+    plus.MouseButton1Click:Connect(function()
+        config[key] = config[key] + 5
+        box.Text = config[key]
+    end)
+    minus.MouseButton1Click:Connect(function()
+        config[key] = config[key] - 5
+        box.Text = config[key]
+    end)
+    box.FocusLost:Connect(function()
+        local n = tonumber(box.Text)
+        if n then config[key] = n end
+        box.Text = config[key]
+    end)
 end
 
-ctrl("Radius", 50, "radius")
-ctrl("Height", 85, "height")
-ctrl("Speed", 120, "speed")
-ctrl("Force", 155, "force")
+createControl("Radius", 20, "radius")
+createControl("Height", 70, "height")
+createControl("Speed", 120, "speed")
+createControl("Force", 170, "force")
 
-local toggle = Instance.new("TextButton", main)
-toggle.Size = UDim2.new(1, -40, 0, 38)
-toggle.Position = UDim2.new(0, 20, 1, -52)
-toggle.Text = "ACTIVAR"
-toggle.BackgroundColor3 = Color3.fromRGB(0, 30, 0)
-toggle.TextColor3 = Color3.fromRGB(0, 255, 0)
-toggle.Font = Enum.Font.GothamBold
-toggle.TextSize = 18
-Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 10)
+-- TOGGLE
+local toggle = Instance.new("TextButton", frame)
+toggle.Size = UDim2.new(0.5,0,0,40)
+toggle.Position = UDim2.new(0.25,0,1,-50)
+toggle.Text = "OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(20,20)
+toggle.TextColor3 = Color3.fromRGB(0,255,0)
 
 toggle.MouseButton1Click:Connect(function()
-    on = not on
-    toggle.Text = on and "DESACTIVAR" or "ACTIVAR"
+    enabled = not enabled
+    toggle.Text = enabled and "ON" or "OFF"
 end)
 
-local minimized = false
-mini.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    for _,v in pairs(main:GetChildren()) do
-        if v ~= top and v.ClassName ~= "UICorner" and v.ClassName ~= "UIStroke" then
-            v.Visible = not minimized
+-- PARTES
+local function getParts()
+    parts = {}
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(character) and not (v.Parent and v.Parent:FindFirstChild("Humanoid")) then
+            v.CanCollide = false
+            pcall(function() v.CustomPhysicalProperties = PhysicalProperties.new(0,0,0) end)
+            table.insert(parts, v)
         end
     end
-    main.Size = minimized and UDim2.new(0,280,0,32) or UDim2.new(0,280,0,260)
-end)
-close.MouseButton1Click:Connect(function() gui:Destroy() end)
-
-plr.CharacterAdded:Connect(function(c)
-    char = c
-    root = c:WaitForChild("HumanoidRootPart")
-end)
-
--- partes
-local function add(p)
-    if not p:IsA("BasePart") then return end
-    if p.Anchored then return end
-    if not p:IsDescendantOf(workspace) then return end
-    if p.Parent and p.Parent:FindFirstChild("Humanoid") then return end
-    if char and p:IsDescendantOf(char) then return end
-    if data[p] then return end
-
-    p.CanCollide = false
-    pcall(function() p.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0) end)
-    data[p] = {ring = #parts % 3, slot = math.floor(#parts/3)}
-    table.insert(parts, p)
 end
 
-for _,v in ipairs(workspace:GetDescendants()) do add(v) end
-workspace.DescendantAdded:Connect(add)
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if enabled then getParts() end
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    root = char:WaitForChild("HumanoidRootPart")
+end)
+
+-- ANILLOS
+local function getRingPosition(index, total, tilt)
+    local angle = (index/total)*math.pi*2
+    local base = Vector3.new(math.cos(angle)*config.radius, 0, math.sin(angle)*config.radius)
+    return CFrame.Angles(tilt, 0, 0) * base
+end
 
 RunService.Heartbeat:Connect(function(dt)
-    if not on or not root then return end
-    t = t + dt * cfg.speed
-    local spin = CFrame.Angles(0, t, 0)
-    local center = root.Position + Vector3.new(0, cfg.height, 0)
+    if not enabled or not root then return end
 
-    for _,p in ipairs(parts) do
-        local d = data[p]
-        if p.Parent and d then
-            local tilt = d.ring == 0 and 0 or d.ring == 1 and math.rad(45) or math.rad(-45)
-            local ang = (d.slot/12) * math.pi*2
-            local base = Vector3.new(math.cos(ang)*cfg.radius, 0, math.sin(ang)*cfg.radius)
-            local pos = CFrame.Angles(tilt,0,0) * base
+    local total = #parts
+    if total == 0 then return end
 
-            local target
-            if d.ring == 0 then -- SOLO MEDIO GIRA
-                target = center + (spin * pos)
-            else
-                target = center + pos
+    local t = tick() * config.speed
+
+    for i,part in ipairs(parts) do
+        if part and part.Parent then
+            local ring = i % 3
+            local tilt = ring == 0 and 0 or ring == 1 and math.rad(45) or math.rad(-45)
+            local pos = getRingPosition(i, total/3, tilt)
+
+            local final
+            if ring == 0 then -- SOLO EL DEL MEDIO GIRA
+                local spin = CFrame.Angles(0, t, 0)
+                final = root.Position + Vector3.new(0, config.height, 0) + (spin * pos)
+            else -- los otros 2 estáticos
+                final = root.Position + Vector3.new(0, config.height, 0) + pos
             end
 
-            local dir = target - p.Position
-            if dir.Magnitude > 1 then
-                p.AssemblyLinearVelocity = dir.Unit * cfg.force
+            local dir = (final - part.Position)
+            if dir.Magnitude > 0.5 then
+                part.AssemblyLinearVelocity = dir.Unit * config.force
             end
         end
     end
