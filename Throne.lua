@@ -7,32 +7,24 @@ local character = player.Character or player.CharacterAdded:Wait()
 local root = character:WaitForChild("HumanoidRootPart")
 
 -- CONFIG
-local rotationSpeed = 2
-local attractionRadius = 100
-local enabled = true
-
-local partsPerRing = 8
-local radius = 10
-
-local ringsConfig = {
-    {tilt = math.rad(0)},
-    {tilt = math.rad(15)},
-    {tilt = math.rad(-15)},
-    {tilt = math.rad(45)},
-    {tilt = math.rad(-45)},
+local config = {
+    radius = 50,
+    speed = 5,
+    force = 200
 }
 
-local controlled = {}
-local connections = {}
+local enabled = false
+local parts = {}
 
--- GUI
-local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-gui.Name = "ThronePro"
+-- ================= GUI =================
+
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "ThroneUI"
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 240, 0, 180)
-frame.Position = UDim2.new(0, 20, 0.5, -90)
-frame.BackgroundColor3 = Color3.new(0,0,0)
+frame.Size = UDim2.new(0, 260, 0, 220)
+frame.Position = UDim2.new(0, 20, 0.5, -110)
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 
 -- DRAG
 local dragging = false
@@ -59,155 +51,115 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- UI helpers
-local function label(text, y)
-    local l = Instance.new("TextLabel", frame)
-    l.Size = UDim2.new(1,0,0,30)
-    l.Position = UDim2.new(0,0,0,y)
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(0,255,0)
-    l.Font = Enum.Font.Code
-    l.TextScaled = true
-    l.Text = text
-    return l
-end
+-- CREAR CONTROL
+local function createControl(text, y, key)
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1,0,0,25)
+    label.Position = UDim2.new(0,0,0,y)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(0,255,0)
+    label.Text = text
+    label.Font = Enum.Font.Code
+    label.TextScaled = true
 
-local function button(text, x, y, callback)
-    local b = Instance.new("TextButton", frame)
-    b.Size = UDim2.new(0,40,0,30)
-    b.Position = UDim2.new(0,x,0,y)
-    b.Text = text
-    b.BackgroundColor3 = Color3.new(0,0,0)
-    b.TextColor3 = Color3.fromRGB(0,255,0)
-    b.Font = Enum.Font.Code
-    b.TextScaled = true
-    b.MouseButton1Click:Connect(callback)
-    return b
-end
+    local box = Instance.new("TextBox", frame)
+    box.Size = UDim2.new(0,80,0,30)
+    box.Position = UDim2.new(0.3,0,0,y+25)
+    box.Text = tostring(config[key])
+    box.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    box.TextColor3 = Color3.fromRGB(0,255,0)
 
--- CONTROLES
-local speedLabel = label("Speed: "..rotationSpeed, 30)
-button("+",150,30,function()
-    rotationSpeed += 0.5
-    speedLabel.Text = "Speed: "..rotationSpeed
-end)
-button("-",190,30,function()
-    rotationSpeed -= 0.5
-    speedLabel.Text = "Speed: "..rotationSpeed
-end)
+    local plus = Instance.new("TextButton", frame)
+    plus.Size = UDim2.new(0,40,0,30)
+    plus.Position = UDim2.new(0.65,0,0,y+25)
+    plus.Text = "+"
+    plus.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    plus.TextColor3 = Color3.fromRGB(0,255,0)
 
-local rangeLabel = label("Range: "..attractionRadius, 70)
-button("+",150,70,function()
-    attractionRadius += 50
-    rangeLabel.Text = "Range: "..attractionRadius
-end)
-button("-",190,70,function()
-    attractionRadius -= 50
-    rangeLabel.Text = "Range: "..attractionRadius
-end)
+    local minus = Instance.new("TextButton", frame)
+    minus.Size = UDim2.new(0,40,0,30)
+    minus.Position = UDim2.new(0.82,0,0,y+25)
+    minus.Text = "-"
+    minus.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    minus.TextColor3 = Color3.fromRGB(0,255,0)
 
--- ON OFF
-local toggleBtn = button("ON", 20, 110, function()
-    enabled = not enabled
-    toggleBtn.Text = enabled and "ON" or "OFF"
-end)
+    plus.MouseButton1Click:Connect(function()
+        config[key] += 10
+        box.Text = tostring(config[key])
+    end)
 
--- MINIMIZAR
-local minimized = false
-local minBtn = button("-", 170, 0, function()
-    minimized = not minimized
-    for _, v in pairs(frame:GetChildren()) do
-        if v:IsA("TextLabel") or v:IsA("TextButton") then
-            if v ~= minBtn and v ~= closeBtn then
-                v.Visible = not minimized
-            end
+    minus.MouseButton1Click:Connect(function()
+        config[key] -= 10
+        box.Text = tostring(config[key])
+    end)
+
+    box.FocusLost:Connect(function()
+        local num = tonumber(box.Text)
+        if num then
+            config[key] = num
         end
-    end
+        box.Text = tostring(config[key])
+    end)
+end
+
+createControl("Radius", 10, "radius")
+createControl("Speed", 70, "speed")
+createControl("Force", 130, "force")
+
+-- TOGGLE
+local toggle = Instance.new("TextButton", frame)
+toggle.Size = UDim2.new(0,100,0,30)
+toggle.Position = UDim2.new(0.3,0,1,-40)
+toggle.Text = "OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(50,0,0)
+toggle.TextColor3 = Color3.fromRGB(0,255,0)
+
+toggle.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    toggle.Text = enabled and "ON" or "OFF"
 end)
 
--- CERRAR TODO
-local closeBtn = button("X", 200, 0, function()
-    enabled = false
-    
-    for _, c in pairs(connections) do
-        pcall(function() c:Disconnect() end)
-    end
-    
-    for _, d in pairs(controlled) do
-        if d.align then d.align:Destroy() end
-    end
-    
-    gui:Destroy()
-end)
+-- ================= PARTES =================
 
--- PARTES
 local function updateParts()
-    controlled = {}
-    local found = {}
-
+    parts = {}
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") and not v.Anchored then
-            local dist = (v.Position - root.Position).Magnitude
-            if dist <= attractionRadius then
-                table.insert(found, v)
-            end
-        end
-    end
-
-    local index = 1
-    for r, cfg in ipairs(ringsConfig) do
-        for i = 1, partsPerRing do
-            local part = found[index]
-            if not part then break end
-
-            local align = Instance.new("AlignPosition")
-            align.MaxForce = 1e7
-            align.Responsiveness = 40
-            align.Parent = part
-
-            local att = Instance.new("Attachment", part)
-            align.Attachment0 = att
-
-            table.insert(controlled, {
-                part = part,
-                align = align,
-                angle = (i/partsPerRing)*math.pi*2,
-                tilt = cfg.tilt
-            })
-
-            index += 1
+            table.insert(parts, v)
         end
     end
 end
 
 task.spawn(function()
     while true do
-        task.wait(2)
-        if enabled then
-            updateParts()
-        end
+        task.wait(3)
+        updateParts()
     end
 end)
 
--- MOVIMIENTO
-table.insert(connections, RunService.Heartbeat:Connect(function(dt)
+-- ================= MOVIMIENTO =================
+
+RunService.Heartbeat:Connect(function(dt)
     if not enabled then return end
-    
-    local baseCF = root.CFrame
-    
-    for _, data in ipairs(controlled) do
-        data.angle += rotationSpeed * dt
-        
-        local circle = CFrame.new(
-            math.cos(data.angle)*radius,
-            0,
-            math.sin(data.angle)*radius
-        )
-        
-        local tiltCF = CFrame.Angles(data.tilt,0,0)
-        local spin = CFrame.Angles(0,data.angle*0.5,0)
-        
-        local finalCF = baseCF * spin * tiltCF * circle
-        data.align.Position = finalCF.Position
+
+    for _, part in pairs(parts) do
+        if part and part.Parent then
+            local offset = part.Position - root.Position
+            local dist = offset.Magnitude
+
+            if dist < config.radius then
+                local angle = math.atan2(offset.Z, offset.X)
+                angle += config.speed * dt
+
+                local target = Vector3.new(
+                    root.Position.X + math.cos(angle)*config.radius,
+                    root.Position.Y + 5,
+                    root.Position.Z + math.sin(angle)*config.radius
+                )
+
+                local dir = (target - part.Position).Unit
+                part.Velocity = dir * config.force
+            end
+        end
     end
-end))
+end)
