@@ -6,7 +6,7 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local root = character:WaitForChild("HumanoidRootPart")
 
--- CONFIG (subí la fuerza para ND)
+-- CONFIG
 local config = {
     radius = 35,
     height = 12,
@@ -18,14 +18,14 @@ local enabled = false
 local parts = {}
 local t = 0
 
--- NETWORK (clave Delta)
+-- NETWORK
 pcall(function()
     RunService.Heartbeat:Connect(function()
         sethiddenproperty(player, "SimulationRadius", math.huge)
     end)
 end)
 
--- GUI (tu misma)
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "ThroneUI"
 gui.ResetOnSpawn = false
@@ -34,10 +34,10 @@ gui.Parent = player:WaitForChild("PlayerGui")
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 260, 0, 260)
 frame.Position = UDim2.new(0, 20, 0.5, -130)
-frame.BackgroundColor3 = Color3.fromRGB(0,0,0) -- más oscuro
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 
 local stroke = Instance.new("UIStroke", frame)
-stroke.Color = Color3.fromRGB(0,255,0) -- verde chillón
+stroke.Color = Color3.fromRGB(0,255,0)
 stroke.Thickness = 2
 
 -- DRAG
@@ -122,12 +122,12 @@ toggle.MouseButton1Click:Connect(function()
     toggle.Text = enabled and "ON" or "OFF"
 end)
 
--- PARTES (CAMBIO 2: ahora con colisión)
+-- PARTES CON COLISIÓN
 local function getParts()
     parts = {}
     for _,v in pairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(character) and not v.Parent:FindFirstChild("Humanoid") then
-            v.CanCollide = true -- antes era false, ahora empujan
+            v.CanCollide = true
             pcall(function() v.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0) end)
             table.insert(parts, v)
         end
@@ -141,6 +141,11 @@ task.spawn(function()
     end
 end)
 
+player.CharacterAdded:Connect(function(char)
+    character = char
+    root = char:WaitForChild("HumanoidRootPart")
+end)
+
 -- ANILLOS
 local function getRingPosition(index, total, tilt)
     local angle = (index/total) * math.pi * 2
@@ -148,42 +153,33 @@ local function getRingPosition(index, total, tilt)
     return CFrame.Angles(tilt, 0, 0) * base
 end
 
-player.CharacterAdded:Connect(function(char)
-    character = char
-    root = char:WaitForChild("HumanoidRootPart")
-end)
-
 RunService.Heartbeat:Connect(function(dt)
     if not enabled or not root then return end
 
     t = t + dt * config.speed
     local total = #parts
     if total == 0 then return end
-
     local perRing = math.ceil(total / 3)
+    local spin = CFrame.Angles(0, t, 0)
 
     for i,part in ipairs(parts) do
         if part and part.Parent then
             local ring = (i-1) % 3
             local indexInRing = math.floor((i-1)/3) + 1
             local tilt = ring == 0 and 0 or ring == 1 and math.rad(45) or math.rad(-45)
-
             local pos = getRingPosition(indexInRing, perRing, tilt)
-            local spin = CFrame.Angles(0, t, 0)
 
-            -- CAMBIO 1: solo el anillo del medio (ring 0) gira
             local final
-            if ring == 0 then
+            if ring == 0 then -- SOLO MEDIO GIRA
                 final = root.Position + Vector3.new(0, config.height, 0) + (spin * pos)
-            else
+            else -- otros 2 estáticos
                 final = root.Position + Vector3.new(0, config.height, 0) + pos
             end
 
-            local dir = final - part.Position
-            if dir.Magnitude > 0.5 then
-                part.AssemblyLinearVelocity = dir.Unit * config.force
-            end
-            part.AssemblyAngularVelocity = Vector3.new(0, 5, 0)
+            -- FIX: posiciona directo, ya no persigue
+            part.AssemblyLinearVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
+            part.CFrame = CFrame.new(final)
         end
     end
 end)
